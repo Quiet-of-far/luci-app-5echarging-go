@@ -115,6 +115,7 @@ chmod +x ./build.sh
   },
   "email": {
     "enabled": true, // 是否启用邮件通知
+    "alert_once_per_day": false, // 是否限制每个宿舍每日最多发送一次预警邮件
     "smtp_host": "", // SMTP服务器地址
     "smtp_port": 587, // SMTP端口
     "username": "", // 发件账号
@@ -133,4 +134,4 @@ chmod +x ./build.sh
 
 ## 开源许可
 
-- MIT LICENSE
+- MIT

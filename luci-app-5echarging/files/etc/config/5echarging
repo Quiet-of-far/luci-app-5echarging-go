@@ -23,6 +23,7 @@ config prediction 'prediction'
 
 config email 'email'
 	option enabled '0'
+	option alert_once_per_day '0'
 	option smtp_host ''
 	option smtp_port '587'
 	option username ''

@@ -42,6 +42,7 @@ config_get CUSTOM_RATE_LEGACY prediction custom_daily_rate 0
 
 # --- Read email ---
 config_get EMAIL_ENABLED email enabled 0
+config_get ALERT_ONCE_PER_DAY email alert_once_per_day 0
 config_get SMTP_HOST email smtp_host ""
 config_get SMTP_PORT email smtp_port 587
 config_get EMAIL_USER email username ""
@@ -86,6 +87,7 @@ fi
 
 # --- Convert booleans ---
 [ "$EMAIL_ENABLED" = "1" ] && EMAIL_ENABLED_JSON="true" || EMAIL_ENABLED_JSON="false"
+[ "$ALERT_ONCE_PER_DAY" = "1" ] && ALERT_ONCE_PER_DAY_JSON="true" || ALERT_ONCE_PER_DAY_JSON="false"
 
 # --- Write JSON ---
 cat > "$CONFIG_FILE" <<EOF
@@ -104,6 +106,7 @@ cat > "$CONFIG_FILE" <<EOF
   },
   "email": {
     "enabled": ${EMAIL_ENABLED_JSON},
+    "alert_once_per_day": ${ALERT_ONCE_PER_DAY_JSON},
     "smtp_host": "${SMTP_HOST}",
     "smtp_port": ${SMTP_PORT},
     "username": "${EMAIL_USER}",

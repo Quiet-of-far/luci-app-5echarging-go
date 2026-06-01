@@ -19,13 +19,14 @@ type ScheduleConfig struct {
 }
 
 type EmailConfig struct {
-	Enabled  bool     `json:"enabled"`
-	SMTPHost string   `json:"smtp_host"`
-	SMTPPort int      `json:"smtp_port"`
-	Username string   `json:"username"`
-	Password string   `json:"password"`
-	From     string   `json:"from"`
-	To       []string `json:"to"`
+	Enabled         bool     `json:"enabled"`
+	AlertOncePerDay bool     `json:"alert_once_per_day"`
+	SMTPHost        string   `json:"smtp_host"`
+	SMTPPort        int      `json:"smtp_port"`
+	Username        string   `json:"username"`
+	Password        string   `json:"password"`
+	From            string   `json:"from"`
+	To              []string `json:"to"`
 }
 
 type PredictionConfig struct {

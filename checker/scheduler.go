@@ -25,16 +25,14 @@ const (
 )
 
 type Checker struct {
-	cfg       *config.Config
-	store     *storage.Store
-	lastAlert map[string]time.Time
+	cfg   *config.Config
+	store *storage.Store
 }
 
 func New(cfg *config.Config, store *storage.Store) *Checker {
 	return &Checker{
-		cfg:       cfg,
-		store:     store,
-		lastAlert: make(map[string]time.Time),
+		cfg:   cfg,
+		store: store,
 	}
 }
 
@@ -78,7 +76,7 @@ func (c *Checker) CheckRoom(room config.Room) (*models.QueryResult, error) {
 	}
 
 	alerts := c.evaluateAlerts(result.Room)
-	if len(alerts) > 0 && c.shouldSendAlert(room, alerts, result.Room.QueryTime) {
+	if len(alerts) > 0 && c.cfg.Email.Enabled && c.shouldSendAlert(room, alerts, result.Room.QueryTime) {
 		summary, body := c.buildAlertMessage(result.Room, alerts)
 		if err := c.sendRoomEmail(room, summary, body); err != nil {
 			log.Printf("[checker] 发送邮件失败 %s: %v", room.Label, err)
@@ -118,10 +116,6 @@ func (c *Checker) QueryAll() []models.QueryResult {
 }
 
 func (c *Checker) GetStatuses() []models.RoomStatus {
-	if cached, err := c.loadStatusCache(); err == nil && len(cached) > 0 {
-		return cached
-	}
-
 	statuses := make([]models.RoomStatus, 0, len(c.cfg.Rooms))
 	for _, room := range c.cfg.Rooms {
 		status, err := c.buildStatus(room)
@@ -245,19 +239,32 @@ func (c *Checker) evaluateAlerts(status models.RoomStatus) []string {
 }
 
 func (c *Checker) shouldSendAlert(room config.Room, alerts []string, now time.Time) bool {
-	for _, alert := range alerts {
-		key := alertKey(room, alert)
-		if last, ok := c.lastAlert[key]; ok && now.Sub(last) < 24*time.Hour {
-			continue
-		}
+	if !c.cfg.Email.AlertOncePerDay {
 		return true
 	}
-	return false
+
+	state, err := c.loadAlertState()
+	if err != nil {
+		log.Printf("[checker] 读取告警状态失败，将继续发送本次告警: %v", err)
+		return true
+	}
+
+	return state[dailyAlertKey(room)] != now.Local().Format("2006-01-02")
 }
 
 func (c *Checker) markAlertsSent(room config.Room, alerts []string, now time.Time) {
-	for _, alert := range alerts {
-		c.lastAlert[alertKey(room, alert)] = now
+	if !c.cfg.Email.AlertOncePerDay {
+		return
+	}
+
+	state, err := c.loadAlertState()
+	if err != nil {
+		log.Printf("[checker] 读取告警状态失败，无法记录每日告警限制: %v", err)
+		state = make(map[string]string)
+	}
+	state[dailyAlertKey(room)] = now.Local().Format("2006-01-02")
+	if err := c.saveAlertState(state); err != nil {
+		log.Printf("[checker] 写入告警状态失败: %v", err)
 	}
 }
 
@@ -285,12 +292,16 @@ func filterRecipients(recipients []string) []string {
 	return filtered
 }
 
-func alertKey(room config.Room, alert string) string {
-	return room.Building + ":" + room.Room + ":" + alert
+func dailyAlertKey(room config.Room) string {
+	return room.Building + ":" + room.Room
 }
 
 func (c *Checker) statusCachePath() string {
 	return c.cfg.DBPath + ".status.json"
+}
+
+func (c *Checker) alertStatePath() string {
+	return c.cfg.DBPath + ".alerts.json"
 }
 
 func (c *Checker) saveStatusCache(data any) {
@@ -332,6 +343,36 @@ func (c *Checker) loadStatusCache() ([]models.RoomStatus, error) {
 		statuses = append(statuses, result.Room)
 	}
 	return statuses, nil
+}
+
+func (c *Checker) loadAlertState() (map[string]string, error) {
+	data, err := os.ReadFile(c.alertStatePath())
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return make(map[string]string), nil
+		}
+		return nil, err
+	}
+
+	state := make(map[string]string)
+	if err := json.Unmarshal(data, &state); err != nil {
+		return nil, err
+	}
+	return state, nil
+}
+
+func (c *Checker) saveAlertState(state map[string]string) error {
+	path := c.alertStatePath()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+
+	payload, err := json.MarshalIndent(state, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(path, payload, 0o644)
 }
 
 func looksLikeWrappedResults(statuses []models.RoomStatus) bool {

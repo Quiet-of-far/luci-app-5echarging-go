@@ -7,7 +7,7 @@ local fs = require("nixio.fs")
 local util = require("luci.util")
 
 local CORE_PATH = "/usr/bin/5echarging"
-local RELEASE_BASE_URL = "https://github.com/Quiet-of-far/luci-app-5echarging-go/releases/download/v1.0.0/5echarging-linux-"
+local RELEASE_BASE_URL = "https://github.com/Quiet-of-far/luci-app-5echarging-go/releases/download/v1.0.1/5echarging-linux-"
 
 local ARCH_WHITELIST = {
 	amd64 = true,

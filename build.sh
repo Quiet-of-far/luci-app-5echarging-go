@@ -4,8 +4,8 @@ set -e
 # 默认在本项目根目录查找名为 openwrt-sdk-* 的目录
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 PKG_NAME="luci-app-5echarging"
-PKG_VERSION="1.0.0"
-PKG_RELEASE="4"
+PKG_VERSION="1.0.1"
+PKG_RELEASE="1"
 PKG_DIR="$SCRIPT_DIR/$PKG_NAME"
 
 SDK_DIR=""

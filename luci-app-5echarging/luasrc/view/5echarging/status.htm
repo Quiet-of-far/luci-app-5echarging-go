@@ -312,8 +312,26 @@ local core_err = http.formvalue("core_err")
 		});
 	}
 
+	function echargingFetchJSON(url, callback) {
+		var finished = false;
+		var timer = window.setTimeout(function() {
+			if (finished)
+				return;
+			finished = true;
+			callback(null, { status: 'error', message: '请求超时，请检查核心是否可执行或查询接口是否可访问' });
+		}, 45000);
+
+		XHR.get(url, null, function(x, data) {
+			if (finished)
+				return;
+			finished = true;
+			window.clearTimeout(timer);
+			callback(x, data);
+		});
+	}
+
 	function echargingLoadStatus() {
-		XHR.get('<%=status_url%>', null, function(x, data) {
+		echargingFetchJSON('<%=status_url%>', function(x, data) {
 			if (!data || data.status === 'error') {
 				echargingFeedback(data && data.message ? data.message : '读取状态失败', true);
 				return;
@@ -324,7 +342,7 @@ local core_err = http.formvalue("core_err")
 
 		function echargingRequest(url, successMessage) {
 			echargingFeedback('请求处理中...', false);
-		XHR.get(url, null, function(x, data) {
+		echargingFetchJSON(url, function(x, data) {
 			if (!data || data.status === 'error') {
 				echargingFeedback(data && data.message ? data.message : '请求失败', true);
 				return;

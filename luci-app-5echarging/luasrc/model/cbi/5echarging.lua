@@ -1,6 +1,20 @@
 local m, s, o
+local sys = require "luci.sys"
+local uci = require "luci.model.uci".cursor()
 
 m = Map("5echarging", "抑疑电止", "宿舍剩余电量自动查询、预测与预警")
+
+function m.on_after_commit(self)
+	sys.call("/usr/bin/5echarging-uci2json >/dev/null 2>&1")
+
+	if uci:get("5echarging", "global", "enabled") == "1" then
+		sys.call("/etc/init.d/5echarging enable >/dev/null 2>&1")
+		sys.call("/etc/init.d/5echarging restart >/dev/null 2>&1")
+	else
+		sys.call("/etc/init.d/5echarging stop >/dev/null 2>&1")
+		sys.call("/etc/init.d/5echarging disable >/dev/null 2>&1")
+	end
+end
 
 s = m:section(SimpleSection)
 s.template = "5echarging/status"
@@ -76,6 +90,11 @@ s.addremove = false
 
 o = s:option(Flag, "enabled", "启用邮件通知")
 o.rmempty = false
+
+o = s:option(Flag, "alert_once_per_day", "邮件告警 1 日至多 1 次", "启用后每个宿舍每天最多发送一次预警邮件")
+o.rmempty = false
+o.default = "0"
+o:depends("enabled", "1")
 
 o = s:option(Value, "smtp_host", "SMTP 服务器")
 o.placeholder = "smtp.example.com"
