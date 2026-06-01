@@ -27,11 +27,19 @@ function index()
 end
 
 function action_status()
+	if service_enabled() then
+		if render_status_cache() then
+			return
+		end
+		write_json_error("服务运行中，暂无状态缓存；请等待一次定时查询或先执行手动查询")
+		return
+	end
+
 	render_command("/usr/bin/5echarging -config /var/etc/5echarging.json status", true)
 end
 
 function action_query_now()
-	render_command("/usr/bin/5echarging -config /var/etc/5echarging.json query-now", true)
+	render_query_now()
 end
 
 function action_test_email()
@@ -65,6 +73,47 @@ local function write_json_error(message)
 		status = "error",
 		message = message
 	})
+end
+
+function service_enabled()
+	local uci = require("luci.model.uci").cursor()
+	return uci:get("5echarging", "global", "enabled") == "1"
+end
+
+local function configured_db_path()
+	local uci = require("luci.model.uci").cursor()
+	return uci:get("5echarging", "global", "db_path") or "/etc/5echarging/5echarging.bbolt"
+end
+
+function render_status_cache()
+	local cache_path = configured_db_path() .. ".status.json"
+	local data = fs.readfile(cache_path)
+	if not data or data == "" then
+		return false
+	end
+
+	local payload = jsonc.parse(data)
+	if not payload then
+		return false
+	end
+
+	http.prepare_content("application/json")
+	http.write_json(payload)
+	return true
+end
+
+function render_query_now()
+	local restart_service = service_enabled()
+
+	if restart_service then
+		sys.call("/etc/init.d/5echarging stop >/dev/null 2>&1")
+	end
+
+	render_command("/usr/bin/5echarging -config /var/etc/5echarging.json query-now", true)
+
+	if restart_service then
+		sys.call("/etc/init.d/5echarging start >/dev/null 2>&1")
+	end
 end
 
 local function core_available()
